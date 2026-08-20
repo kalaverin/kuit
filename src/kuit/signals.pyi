@@ -5,7 +5,7 @@ from typing import Any, Protocol
 
 from kain.classes import Singleton
 
-__all__ = ("add_hook", "on", "register")
+__all__ = ("on_exception", "on", "register")
 
 NeedRestart: bool
 
@@ -54,7 +54,7 @@ class OnQuit(metaclass=Singleton):
     def threading_handler(self, args: Any) -> None: ...
     def _restore_original_handlers(self) -> None: ...
     def quit(self, func: Callable[[], Any]) -> None: ...
-    def add_hook(
+    def on_exception(
         self,
         func: Callable[
             [type[BaseException], BaseException, TracebackType | None],
@@ -64,7 +64,7 @@ class OnQuit(metaclass=Singleton):
     def _teardown(self) -> None: ...
 
 def register(func: Callable[[], Any]) -> None: ...
-def add_hook(
+def on_exception(
     func: Callable[
         [type[BaseException], BaseException, TracebackType | None],
         Any,

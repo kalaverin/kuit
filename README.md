@@ -12,7 +12,7 @@ description: Graceful shutdown and file-change detection for Python
 It gives you three public entry points:
 
 - `kuit.register` — register callbacks that run when the process exits.
-- `kuit.add_hook` — append custom handlers to the uncaught-exception chain.
+- `kuit.on_exception` — append custom handlers to the uncaught-exception chain.
 - `kuit.on` — detect file changes or incoming signals and exit cleanly.
 
 [ref: #installation]
@@ -55,9 +55,9 @@ Exceptions raised by one callback are logged and do not stop the next callback f
 
 [ref: #add-hook]
 
-## Adding exception hooks with `kuit.add_hook`
+## Adding exception hooks with `kuit.on_exception`
 
-`kuit.add_hook` lets you insert a custom function into the chain that runs before the original `sys.excepthook`.
+`kuit.on_exception` lets you insert a custom function into the chain that runs before the original `sys.excepthook`.
 
 ```python
 import kuit
@@ -65,7 +65,7 @@ import kuit
 def notify_sentry(exc_type, exc_value, traceback):
     print(f"reporting {exc_type.__name__}: {exc_value}")
 
-kuit.add_hook(notify_sentry)
+kuit.on_exception(notify_sentry)
 ```
 
 [ref: #on]
@@ -117,7 +117,7 @@ def cleanup():
 def log_uncaught(exc_type, exc_value, traceback):
     print(f"uncaught {exc_type.__name__}: {exc_value}")
 
-kuit.add_hook(log_uncaught)
+kuit.on_exception(log_uncaught)
 
 checker = kuit.on(
     signal=signal.SIGUSR1,

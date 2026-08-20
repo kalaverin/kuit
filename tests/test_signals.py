@@ -166,7 +166,7 @@ class TestOnSystemExit:
         def original_hook(*args: Any) -> None:
             original_calls.append(args)
 
-        inst.add_hook(hook)
+        inst.on_exception(hook)
         inst.original_hook = original_hook
         inst._exceptions_hook(
             RuntimeError,
@@ -503,7 +503,7 @@ class TestOnQuitHooksExtended:
 
     def test_add_hook_appends_to_hooks_chain(self) -> None:
         inst = _fresh_instance()
-        inst.add_hook(lambda *_: None)
+        inst.on_exception(lambda *_: None)
         assert len(inst.hooks_chain) == 1
 
     def test_exception_in_hook_logs_and_continues(
@@ -520,8 +520,8 @@ class TestOnQuitHooksExtended:
         def good_hook(*_) -> None:
             calls.append("good")
 
-        inst.add_hook(bad_hook)
-        inst.add_hook(good_hook)
+        inst.on_exception(bad_hook)
+        inst.on_exception(good_hook)
         with caplog.at_level("ERROR", logger="kuit.signals"):
             inst._exceptions_hook(RuntimeError, RuntimeError("x"), None)
         assert calls == ["bad", "good"]
@@ -536,9 +536,9 @@ class TestOnQuitHooksExtended:
             nonlocal count
             count += 1
 
-        inst.add_hook(hook)
-        inst.add_hook(hook)
-        inst.add_hook(hook)
+        inst.on_exception(hook)
+        inst.on_exception(hook)
+        inst.on_exception(hook)
         inst._exceptions_hook(RuntimeError, RuntimeError("x"), None)
         assert count == 3
 
@@ -564,7 +564,7 @@ class TestOnQuitHooksExtended:
             call_count += 1
             sys.excepthook = lambda *_: None
 
-        inst.add_hook(mutating_hook)
+        inst.on_exception(mutating_hook)
         # The proxy should run once, append the lambda, and finish without
         # entering an infinite loop because it only checks at the top.
         inst._exceptions_hook(RuntimeError, RuntimeError("x"), None)
@@ -1027,5 +1027,5 @@ class TestOnQuitIntegration:
 
     def test_add_hook_returns_none(self) -> None:
         inst = _fresh_instance()
-        result = inst.add_hook(lambda *_: None)
+        result = inst.on_exception(lambda *_: None)
         assert result is None

@@ -214,7 +214,7 @@ class TestOnQuit:
 
     def test_on_quit_add_hook_appends_to_chain(self) -> None:
         """GIVEN a custom exception hook
-        WHEN add_hook() is called
+        WHEN on_exception() is called
         THEN the hook is present in hooks_chain.
         """
         obj = OnQuit()
@@ -226,7 +226,7 @@ class TestOnQuit:
         ) -> None:
             pass
 
-        obj.add_hook(my_hook)
+        obj.on_exception(my_hook)
 
         assert my_hook in obj.hooks_chain
 

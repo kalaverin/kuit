@@ -1,11 +1,11 @@
 from kuit.signals import (
-    add_hook,
+    on_exception,
     on,
     register,
 )
 
 __all__ = (
-    "add_hook",
+    "on_exception",
     "on",
     "register",
 )

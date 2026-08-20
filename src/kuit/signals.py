@@ -30,7 +30,7 @@ from kain import Who
 from kain.classes import Singleton
 
 __all__ = (
-    "add_hook",
+    "on_exception",
     "on",
     "register",
 )
@@ -177,7 +177,7 @@ class OnQuit(metaclass=Singleton):
         self._ensure_atexit()
         self.callbacks.append(func)
 
-    def add_hook(
+    def on_exception(
         self,
         func: Callable[
             [type[BaseException], BaseException, TracebackType | None],
@@ -277,4 +277,4 @@ def on(
 
 registry = cast("OnQuit", OnQuit())
 register = registry.quit
-add_hook = registry.add_hook
+on_exception = registry.on_exception
