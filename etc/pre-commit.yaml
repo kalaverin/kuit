@@ -151,6 +151,7 @@ repos:
         name: pretty format toml files
         args:
           - --autofix
+        exclude: uv.toml
   - repo: https://github.com/dannysepler/rm_unneeded_f_str
     rev: v0.2.0
     hooks:

@@ -11,8 +11,8 @@ description: Graceful shutdown and file-change detection for Python
 
 It gives you three public entry points:
 
-- `kuit.register` — register callbacks that run when the process exits.
-- `kuit.on_exception` — append custom handlers to the uncaught-exception chain.
+- `kuit.and_call` — register callbacks that run when the process exits.
+- `kuit.and_intercept` — append custom handlers to the uncaught-exception chain.
 - `kuit.on` — detect file changes or incoming signals and exit cleanly.
 
 [ref: #installation]
@@ -31,21 +31,23 @@ Or with any PEP 517-compatible tool:
 pip install kuit
 ```
 
-[ref: #register]
+[ref: #and-call]
 
-## Registering shutdown callbacks with `kuit.register`
+## Registering shutdown callbacks with `kuit.and_call`
 
-Use `kuit.register` as a decorator or as a plain function call.
+Use `kuit.and_call` as a decorator or as a plain function call.
 The callback runs exactly once on `SIGINT`, `SIGTERM`, `SIGQUIT`, or an unhandled exception.
 
 ```python
 import kuit
 
-@kuit.register
+
+@kuit.and_call
 def close_db():
     print("closing database connection")
 
-@kuit.register
+
+@kuit.and_call
 def flush_logs():
     print("flushing logs")
 ```
@@ -53,19 +55,21 @@ def flush_logs():
 Callbacks are executed in registration order.
 Exceptions raised by one callback are logged and do not stop the next callback from running.
 
-[ref: #add-hook]
+[ref: #and-intercept]
 
-## Adding exception hooks with `kuit.on_exception`
+## Adding exception hooks with `kuit.and_intercept`
 
-`kuit.on_exception` lets you insert a custom function into the chain that runs before the original `sys.excepthook`.
+`kuit.and_intercept` lets you insert a custom function into the chain that runs before the original `sys.excepthook`.
 
 ```python
 import kuit
 
+
 def notify_sentry(exc_type, exc_value, traceback):
     print(f"reporting {exc_type.__name__}: {exc_value}")
 
-kuit.on_exception(notify_sentry)
+
+kuit.and_intercept(notify_sentry)
 ```
 
 [ref: #on]
@@ -78,6 +82,7 @@ By default it watches the mtime of `sys.argv[0]`; if the file changes, it calls 
 ```python
 import signal
 import kuit
+
 
 checker = kuit.on(signal=signal.SIGUSR1)
 
@@ -110,14 +115,18 @@ All arguments are keyword-only.
 import signal
 import kuit
 
-@kuit.register
+
+@kuit.and_call
 def cleanup():
     print("shutting down")
+
 
 def log_uncaught(exc_type, exc_value, traceback):
     print(f"uncaught {exc_type.__name__}: {exc_value}")
 
-kuit.on_exception(log_uncaught)
+
+kuit.and_intercept(log_uncaught)
+
 
 checker = kuit.on(
     signal=signal.SIGUSR1,
