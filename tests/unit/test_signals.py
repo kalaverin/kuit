@@ -18,8 +18,8 @@ import pytest
 from faker import Faker
 from kain.classes import Nothing
 
-import kuit.signals as _signals
-from kuit.signals import OnQuit, get_mtime, get_selfpath, on
+import kuit.handlers as _signals
+from kuit.handlers import OnQuit, get_mtime, get_selfpath, on
 
 
 @pytest.fixture(autouse=True)
@@ -36,9 +36,9 @@ def _reset_on_quit_state() -> Generator[None, None, None]:
     yield
     if OnQuit.instance is not Nothing:
         OnQuit.instance._restore_original_handlers()
-        OnQuit.instance.already_called = False
-        OnQuit.instance.callbacks.clear()
-        OnQuit.instance.hooks_chain.clear()
+        OnQuit.instance._already_called = False
+        OnQuit.instance._callbacks.clear()
+        OnQuit.instance._hooks_chain.clear()
     OnQuit.instance = Nothing  # type: ignore[assignment][misc]
     # Reset global restart flag.
     _signals.NeedRestart = False
@@ -82,9 +82,9 @@ class TestOnQuit:
         def cb() -> str:
             return fake.pystr()
 
-        obj.quit(cb)
+        obj.on_exit(cb)
 
-        assert cb in obj.callbacks
+        assert cb in obj._callbacks
 
     def test_on_quit_teardown_executes_callbacks(self) -> None:
         """GIVEN scheduled callbacks
@@ -94,8 +94,8 @@ class TestOnQuit:
         obj = OnQuit()
         order: list[int] = []
 
-        obj.quit(lambda: order.append(1))
-        obj.quit(lambda: order.append(2))
+        obj.on_exit(lambda: order.append(1))
+        obj.on_exit(lambda: order.append(2))
 
         obj._teardown()
 
@@ -108,11 +108,11 @@ class TestOnQuit:
         """
         obj = OnQuit()
 
-        obj.quit(lambda: None)
+        obj.on_exit(lambda: None)
         obj._teardown()
         obj._teardown()
 
-        assert obj.already_called is True
+        assert obj._already_called is True
 
     def test_on_quit_restore_original_handlers_reverts_hooks(
         self,
@@ -142,7 +142,7 @@ class TestOnQuit:
             obj._setup()
             obj._restore_original_handlers()
 
-            assert sys.excepthook is obj.original_hook
+            assert sys.excepthook is obj._original_hook
             assert threading.excepthook is threading.__excepthook__
             assert (
                 signal.signal(signal.SIGINT, signal.SIG_DFL) is custom_sigint
@@ -181,8 +181,8 @@ class TestOnQuit:
         THEN global hooks and atexit remain untouched.
         """
         with (
-            patch("kuit.signals.atexit.register") as mock_atexit,
-            patch("kuit.signals.bind") as mock_bind,
+            patch("kuit.handlers.atexit.register") as mock_atexit,
+            patch("kuit.handlers.bind") as mock_bind,
         ):
             OnQuit()
 
@@ -206,11 +206,11 @@ class TestOnQuit:
                 wraps=obj._ensure_atexit,
             ) as mock_atexit,
         ):
-            obj.quit(lambda: None)
+            obj.on_exit(lambda: None)
 
         mock_install.assert_called_once()
         mock_atexit.assert_called_once()
-        assert len(obj.callbacks) == 1
+        assert len(obj._callbacks) == 1
 
     def test_on_quit_add_hook_appends_to_chain(self) -> None:
         """GIVEN a custom exception hook
@@ -228,7 +228,7 @@ class TestOnQuit:
 
         obj.on_exception(my_hook)
 
-        assert my_hook in obj.hooks_chain
+        assert my_hook in obj._hooks_chain
 
     def test_on_quit_teardown_catches_callback_exception_and_logs(
         self,
@@ -249,10 +249,10 @@ class TestOnQuit:
             nonlocal after
             after = True
 
-        obj.quit(bad_callback)
-        obj.quit(good_callback)
+        obj.on_exit(bad_callback)
+        obj.on_exit(good_callback)
 
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             obj._teardown()
 
         assert any(record.levelname == "ERROR" for record in caplog.records)
@@ -268,11 +268,11 @@ class TestOnQuit:
         """
         obj = OnQuit()
 
-        obj.quit(lambda: (_ for _ in ()).throw(RuntimeError(fake.pystr())))
+        obj.on_exit(lambda: (_ for _ in ()).throw(RuntimeError(fake.pystr())))
 
         obj._teardown()
 
-        assert obj.already_called is True
+        assert obj._already_called is True
 
     def test_on_quit_exceptions_hooks_proxy_logs_hook_exception(
         self,
@@ -293,12 +293,12 @@ class TestOnQuit:
         ) -> None:
             raise RuntimeError(message)
 
-        obj.hooks_chain.append(bad_hook)
+        obj._hooks_chain.append(bad_hook)
         # Suppress stderr noise from the original sys.__excepthook__.
-        obj.original_hook = lambda *_a: None  # type: ignore[assignment][method-assign]
+        obj._original_hook = lambda *_a: None  # type: ignore[assignment][method-assign]
 
         with (
-            caplog.at_level("ERROR", logger="kuit.signals"),
+            caplog.at_level("ERROR", logger="kuit.handlers"),
             contextlib.suppress(SystemExit),
         ):
             obj._exceptions_hook(
@@ -318,9 +318,9 @@ class TestOnQuit:
         THEN TypeError is raised inside teardown and logged at ERROR.
         """
         obj = OnQuit()
-        obj.callbacks.append(None)  # type: ignore[assignment][arg-type]
+        obj._callbacks.append(None)  # type: ignore[assignment][arg-type]
 
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             obj._teardown()
 
         assert any(
@@ -336,7 +336,7 @@ class TestOnQuit:
         obj = OnQuit()
         obj._teardown()
 
-        assert obj.already_called is True
+        assert obj._already_called is True
 
     def test_on_quit_teardown_continues_after_callback_system_exit(
         self,
@@ -357,10 +357,10 @@ class TestOnQuit:
             nonlocal after
             after = True
 
-        obj.quit(bad_callback)
-        obj.quit(good_callback)
+        obj.on_exit(bad_callback)
+        obj.on_exit(good_callback)
 
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             obj._teardown()
 
         assert any(record.levelname == "ERROR" for record in caplog.records)
@@ -567,7 +567,7 @@ class TestOn:
         checker = on(func=lambda _code: None)
         script.write_text("changed")
 
-        with caplog.at_level(logging.WARNING, logger="kuit.signals"):
+        with caplog.at_level(logging.WARNING, logger="kuit.handlers"):
             checker()
 
         assert any("updated at" in r.message for r in caplog.records)
@@ -590,7 +590,7 @@ class TestOn:
         checker = on()
         script.unlink()
 
-        with caplog.at_level(logging.WARNING, logger="kuit.signals"):
+        with caplog.at_level(logging.WARNING, logger="kuit.handlers"):
             result = checker()
 
         assert result is False
@@ -738,7 +738,7 @@ class TestEdgeCases:
         script.unlink()
 
         # --- Act ---
-        with caplog.at_level(logging.WARNING, logger="kuit.signals"):
+        with caplog.at_level(logging.WARNING, logger="kuit.handlers"):
             result = checker()
 
         # --- Assert ---
@@ -755,12 +755,12 @@ class TestEdgeCases:
         """
         # --- Arrange ---
         obj = OnQuit()
-        obj.callbacks.clear()
-        obj.callbacks.append(None)  # type: ignore[assignment][arg-type]
-        obj.already_called = False
+        obj._callbacks.clear()
+        obj._callbacks.append(None)  # type: ignore[assignment][arg-type]
+        obj._already_called = False
 
         # --- Act ---
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             obj._teardown()
 
         # --- Assert ---

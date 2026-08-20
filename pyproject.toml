@@ -60,13 +60,13 @@ classifiers = [
   "Operating System :: OS Independent"
 ]
 dependencies = [
-    "kain>=1.1.11",
+  "kain>=1.2,<2"
 ]
 description = "kuit"
 name = "kuit"
 readme = "README.md"
 requires-python = ">=3.12,<3.14"
-version = "0.0.3"
+version = "1.0.0"
 
 [project.urls]
 Homepage = "https://kalaver.in"

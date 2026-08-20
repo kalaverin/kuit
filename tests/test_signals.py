@@ -1,4 +1,4 @@
-"""Tests for kuit.signals module."""
+"""Tests for kuit.handlers module."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 from kain.classes import Nothing
 
-from kuit.signals import (
+from kuit.handlers import (
     NeedRestart,
     OnQuit,
     get_mtime,
@@ -91,14 +91,14 @@ class TestOnSystemExit:
     def test_schedule_calls_callback_on_teardown(self) -> None:
         callback = MagicMock()
         inst = _fresh_instance()
-        inst.quit(callback)
+        inst.on_exit(callback)
         inst._teardown()
         callback.assert_called_once_with()
 
     def test_teardown_is_idempotent(self) -> None:
         callback = MagicMock()
         inst = _fresh_instance()
-        inst.quit(callback)
+        inst.on_exit(callback)
         inst._teardown()
         inst._teardown()
         assert callback.call_count == 1
@@ -109,8 +109,8 @@ class TestOnSystemExit:
     ) -> None:
         callback = MagicMock(side_effect=RuntimeError("boom"))
         inst = _fresh_instance()
-        inst.quit(callback)
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        inst.on_exit(callback)
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             inst._teardown()
         assert "boom" in caplog.text
 
@@ -118,14 +118,14 @@ class TestOnSystemExit:
         inst = _fresh_instance()
         args = _make_except_hook_args(SystemExit, SystemExit(1), None)
         with patch.object(inst, "_proxy") as proxy:
-            inst.threading_handler(args)
+            inst._threading_handler(args)
             proxy.assert_not_called()
 
     def test_threading_handler_skips_none_exc_type(self) -> None:
         inst = _fresh_instance()
         args = _make_except_hook_args(None, None, None)
         with patch.object(inst, "_proxy") as proxy:
-            inst.threading_handler(args)
+            inst._threading_handler(args)
             proxy.assert_not_called()
 
     def test_threading_handler_proxies_other_exceptions(self) -> None:
@@ -137,7 +137,7 @@ class TestOnSystemExit:
             tb = sys.exc_info()[2]
         args = _make_except_hook_args(ValueError, ValueError("test"), tb)
         with patch.object(inst, "_proxy") as proxy:
-            inst.threading_handler(args)
+            inst._threading_handler(args)
             proxy.assert_called_once_with(
                 ValueError,
                 args.exc_value,
@@ -147,7 +147,7 @@ class TestOnSystemExit:
     def test_restore_original_handlers_resets_sigquit(self) -> None:
         inst = _fresh_instance()
         inst._setup()
-        with patch("kuit.signals.bind") as mock_bind:
+        with patch("kuit.handlers.bind") as mock_bind:
             inst._restore_original_handlers()
         calls = [c[0][0] for c in mock_bind.call_args_list]
         assert signal.SIGINT in calls
@@ -167,7 +167,7 @@ class TestOnSystemExit:
             original_calls.append(args)
 
         inst.on_exception(hook)
-        inst.original_hook = original_hook
+        inst._original_hook = original_hook
         inst._exceptions_hook(
             RuntimeError,
             RuntimeError("boom"),
@@ -181,7 +181,7 @@ class TestOnSystemExit:
         assert original_calls[0][0] is RuntimeError
         assert str(original_calls[0][1]) == "boom"
         assert original_calls[0][2] is None
-        assert inst.already_called is True
+        assert inst._already_called is True
 
     def test_signal_handler_calls_teardown_and_exits(self) -> None:
         inst = _fresh_instance()
@@ -209,8 +209,8 @@ class TestOnSystemExit:
     def test_on_quit_init_does_not_install(self) -> None:
         """Construction must not touch global hooks, handlers, or atexit."""
         with (
-            patch("kuit.signals.atexit.register") as mock_atexit,
-            patch("kuit.signals.bind") as mock_bind,
+            patch("kuit.handlers.atexit.register") as mock_atexit,
+            patch("kuit.handlers.bind") as mock_bind,
         ):
             _fresh_instance()
         mock_atexit.assert_not_called()
@@ -220,8 +220,8 @@ class TestOnSystemExit:
         """install() registers excepthook, threading hook, signals, atexit."""
         inst = _fresh_instance()
         with (
-            patch("kuit.signals.atexit.register") as mock_atexit,
-            patch("kuit.signals.bind") as mock_bind,
+            patch("kuit.handlers.atexit.register") as mock_atexit,
+            patch("kuit.handlers.bind") as mock_bind,
         ):
             inst._setup()
         mock_atexit.assert_not_called()
@@ -230,13 +230,13 @@ class TestOnSystemExit:
         assert signal.SIGTERM in sigs
         assert sys.excepthook is inst._proxy
         assert getattr(threading.excepthook, "__func__", None) is (
-            inst.threading_handler.__func__
+            inst._threading_handler.__func__
         )
 
     def test_install_is_idempotent(self) -> None:
         """Repeated install() calls must not register hooks again."""
         inst = _fresh_instance()
-        with patch("kuit.signals.bind") as mock_bind:
+        with patch("kuit.handlers.bind") as mock_bind:
             inst._setup()
             inst._setup()
         # SIGINT, SIGTERM, SIGQUIT = 3 calls total.
@@ -253,13 +253,13 @@ class TestOnSystemExit:
                 wraps=inst._ensure_atexit,
             ) as mock_atexit,
         ):
-            inst.quit(lambda: None)
-            inst.quit(lambda: None)
+            inst.on_exit(lambda: None)
+            inst.on_exit(lambda: None)
         # install() and _ensure_atexit() are invoked from each schedule()
         # but both are idempotent.
         assert mock_install.call_count == 2
         assert mock_atexit.call_count == 2
-        assert len(inst.callbacks) == 2
+        assert len(inst._callbacks) == 2
 
     def test_restore_original_handlers_restores_signal_handlers(self) -> None:
         """restore_original_handlers() restores saved signal handlers."""
@@ -311,11 +311,11 @@ class TestOn:
         assert checker.sleep(0.0, poll=0.1) is True
 
     def test_on_registers_signal_handler(self) -> None:
-        import kuit.signals as sig_mod
+        import kuit.handlers as sig_mod
 
         mock_exit = MagicMock()
         on.cache_clear()  # type: ignore[assignment][attr-defined]
-        with patch("kuit.signals.bind") as mock_bind:
+        with patch("kuit.handlers.bind") as mock_bind:
             on(func=mock_exit, signal=signal.SIGUSR1)
             mock_bind.assert_called_once_with(signal.SIGUSR1, ANY)
         handler = mock_bind.call_args[0][1]
@@ -325,7 +325,7 @@ class TestOn:
         sig_mod.NeedRestart = False
 
     def test_on_on_change_triggers_when_needrestart_set(self) -> None:
-        import kuit.signals as sig_mod
+        import kuit.handlers as sig_mod
 
         mock_exit = MagicMock()
         on.cache_clear()  # type: ignore[assignment][attr-defined]
@@ -340,7 +340,7 @@ class TestOn:
     def test_on_on_change_file_not_found(self) -> None:
         mock_exit = MagicMock()
         on.cache_clear()  # type: ignore[assignment][attr-defined]
-        with patch("kuit.signals.get_mtime") as mock_mtime:
+        with patch("kuit.handlers.get_mtime") as mock_mtime:
             mock_mtime.return_value = 1.0
             checker = on(func=mock_exit)
             mock_mtime.side_effect = FileNotFoundError
@@ -359,7 +359,7 @@ class TestModuleAttributes:
         assert isinstance(NeedRestart, bool)
 
     def test_all_exports_exist(self) -> None:
-        import kuit.signals as mod
+        import kuit.handlers as mod
 
         for name in mod.__all__:
             assert hasattr(mod, name)
@@ -376,14 +376,14 @@ class TestOnQuitScheduleVariations:
     def test_schedule_plain_function(self) -> None:
         calls: list[int] = []
         inst = _fresh_instance()
-        inst.quit(lambda: calls.append(1))
+        inst.on_exit(lambda: calls.append(1))
         inst._teardown()
         assert calls == [1]
 
     def test_schedule_lambda(self) -> None:
         flag = []
         inst = _fresh_instance()
-        inst.quit(lambda: flag.append("ok"))
+        inst.on_exit(lambda: flag.append("ok"))
         inst._teardown()
         assert flag == ["ok"]
 
@@ -397,7 +397,7 @@ class TestOnQuitScheduleVariations:
 
         obj = C()
         inst = _fresh_instance()
-        inst.quit(obj.incr)
+        inst.on_exit(obj.incr)
         inst._teardown()
         assert obj.val == 1
 
@@ -411,37 +411,37 @@ class TestOnQuitScheduleVariations:
 
         counter = Counter()
         inst = _fresh_instance()
-        inst.quit(counter)
+        inst.on_exit(counter)
         inst._teardown()
         assert counter.count == 1
 
     def test_schedule_functools_partial(self) -> None:
         results: list[int] = []
         inst = _fresh_instance()
-        inst.quit(partial(results.append, 42))
+        inst.on_exit(partial(results.append, 42))
         inst._teardown()
         assert results == [42]
 
     def test_duplicate_schedule_calls_callback_twice(self) -> None:
         calls: list[int] = []
         inst = _fresh_instance()
-        inst.quit(lambda: calls.append(1))
-        inst.quit(lambda: calls.append(1))
+        inst.on_exit(lambda: calls.append(1))
+        inst.on_exit(lambda: calls.append(1))
         inst._teardown()
         assert calls == [1, 1]
 
     def test_schedule_preserves_registration_order(self) -> None:
         order: list[str] = []
         inst = _fresh_instance()
-        inst.quit(lambda: order.append("a"))
-        inst.quit(lambda: order.append("b"))
-        inst.quit(lambda: order.append("c"))
+        inst.on_exit(lambda: order.append("a"))
+        inst.on_exit(lambda: order.append("b"))
+        inst.on_exit(lambda: order.append("c"))
         inst._teardown()
         assert order == ["a", "b", "c"]
 
     def test_schedule_returns_none(self) -> None:
         inst = _fresh_instance()
-        result = inst.quit(lambda: None)
+        result = inst.on_exit(lambda: None)
         assert result is None
 
 
@@ -450,22 +450,22 @@ class TestOnQuitTeardownExtended:
 
     def test_teardown_sets_already_called(self) -> None:
         inst = _fresh_instance()
-        assert inst.already_called is False
+        assert inst._already_called is False
         inst._teardown()
-        assert inst.already_called is True
+        assert inst._already_called is True
 
     def test_teardown_with_empty_callbacks_ok(self) -> None:
         inst = _fresh_instance()
         assert inst._teardown() is None
-        assert inst.already_called is True
+        assert inst._already_called is True
 
     def test_teardown_catches_baseexception_in_callback(
         self,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         inst = _fresh_instance()
-        inst.quit(lambda: (_ for _ in ()).throw(SystemExit("die")))
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        inst.on_exit(lambda: (_ for _ in ()).throw(SystemExit("die")))
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             inst._teardown()
         assert "die" in caplog.text
 
@@ -475,23 +475,23 @@ class TestOnQuitTeardownExtended:
     ) -> None:
         original_excepthook = sys.excepthook
         inst = _fresh_instance()
-        inst.quit(lambda: (_ for _ in ()).throw(RuntimeError("boom")))
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        inst.on_exit(lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             inst._teardown()
         assert sys.excepthook is original_excepthook
 
     def test_teardown_runs_callbacks_in_order(self) -> None:
         order: list[int] = []
         inst = _fresh_instance()
-        inst.quit(lambda: order.append(1))
-        inst.quit(lambda: order.append(2))
+        inst.on_exit(lambda: order.append(1))
+        inst.on_exit(lambda: order.append(2))
         inst._teardown()
         assert order == [1, 2]
 
     def test_multiple_teardown_calls_no_additional_callbacks(self) -> None:
         counter = MagicMock()
         inst = _fresh_instance()
-        inst.quit(counter)
+        inst.on_exit(counter)
         inst._teardown()
         inst._teardown()
         inst._teardown()
@@ -504,7 +504,7 @@ class TestOnQuitHooksExtended:
     def test_add_hook_appends_to_hooks_chain(self) -> None:
         inst = _fresh_instance()
         inst.on_exception(lambda *_: None)
-        assert len(inst.hooks_chain) == 1
+        assert len(inst._hooks_chain) == 1
 
     def test_exception_in_hook_logs_and_continues(
         self,
@@ -522,11 +522,11 @@ class TestOnQuitHooksExtended:
 
         inst.on_exception(bad_hook)
         inst.on_exception(good_hook)
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             inst._exceptions_hook(RuntimeError, RuntimeError("x"), None)
         assert calls == ["bad", "good"]
         assert "hook boom" in caplog.text
-        assert inst.already_called is True
+        assert inst._already_called is True
 
     def test_multiple_hooks_all_called(self) -> None:
         inst = _fresh_instance()
@@ -551,8 +551,8 @@ class TestOnQuitHooksExtended:
         sys.excepthook = other_hook
         inst._exceptions_hook(RuntimeError, RuntimeError("x"), None)
         # teardown() restores sys.excepthook, so we verify by side-effects:
-        assert other_hook in inst.hooks_chain
-        assert inst.already_called is True
+        assert other_hook in inst._hooks_chain
+        assert inst._already_called is True
 
     def test_exceptions_hooks_proxy_recursion_safety(self) -> None:
         """Ensure that changing excepthook inside a hook does not recurse."""
@@ -569,12 +569,12 @@ class TestOnQuitHooksExtended:
         # entering an infinite loop because it only checks at the top.
         inst._exceptions_hook(RuntimeError, RuntimeError("x"), None)
         assert call_count == 1
-        assert inst.already_called is True
+        assert inst._already_called is True
 
     def test_exceptions_hooks_proxy_calls_original_hook(self) -> None:
         inst = _fresh_instance()
         original = MagicMock()
-        inst.original_hook = original
+        inst._original_hook = original
         inst._exceptions_hook(ValueError, ValueError("v"), None)
         assert original.call_count == 1
         args = original.call_args[0]
@@ -585,7 +585,7 @@ class TestOnQuitHooksExtended:
     def test_inject_hook_replaces_excepthook_explicitly(self) -> None:
         inst = _fresh_instance()
         sys.excepthook = sys.__excepthook__
-        inst.inject_hook()
+        inst._inject_hook()
         assert sys.excepthook is inst._proxy
 
 
@@ -615,7 +615,7 @@ class TestOnQuitThreadingExtended:
             None,
         )
         with patch.object(inst, "_proxy") as proxy:
-            inst.threading_handler(args)
+            inst._threading_handler(args)
             if should_proxy:
                 proxy.assert_called_once()
             else:
@@ -636,7 +636,7 @@ class TestOnQuitThreadingExtended:
             thread=custom_thread,
         )
         with patch.object(inst, "_proxy") as proxy:
-            inst.threading_handler(args)
+            inst._threading_handler(args)
             proxy.assert_called_once_with(
                 ValueError,
                 args.exc_value,
@@ -651,7 +651,7 @@ class TestOnQuitThreadingExtended:
             None,
         )
         with patch.object(inst, "_proxy") as proxy:
-            inst.threading_handler(args)
+            inst._threading_handler(args)
             proxy.assert_called_once()
 
     def test_inject_threading_hook_replaces_hook(self) -> None:
@@ -660,7 +660,7 @@ class TestOnQuitThreadingExtended:
         inst._inject_threading_hook()
         assert (
             getattr(threading.excepthook, "__func__", None)
-            is inst.threading_handler.__func__
+            is inst._threading_handler.__func__
         )
 
 
@@ -685,14 +685,14 @@ class TestOnQuitSignalExtended:
     )
     def test_inject_signal_handler_binds_signal(self, sig: int) -> None:
         inst = _fresh_instance()
-        with patch("kuit.signals.bind") as mock_bind:
+        with patch("kuit.handlers.bind") as mock_bind:
             inst._inject_handler()
         calls = [c[0][0] for c in mock_bind.call_args_list]
         assert sig in calls
 
     def test_inject_signal_handler_does_not_bind_sighup(self) -> None:
         inst = _fresh_instance()
-        with patch("kuit.signals.bind") as mock_bind:
+        with patch("kuit.handlers.bind") as mock_bind:
             inst._inject_handler()
         calls = [c[0][0] for c in mock_bind.call_args_list]
         assert getattr(signal, "SIGHUP", -1) not in calls
@@ -706,7 +706,7 @@ class TestOnQuitSignalExtended:
         original = signal.signal(sig, signal.SIG_DFL)
         try:
             inst._setup()
-            with patch("kuit.signals.bind") as mock_bind:
+            with patch("kuit.handlers.bind") as mock_bind:
                 inst._restore_original_handlers()
             calls = {c[0][0]: c[0][1] for c in mock_bind.call_args_list}
             assert calls[sig] is original
@@ -717,7 +717,7 @@ class TestOnQuitSignalExtended:
         if not hasattr(signal, "SIGHUP"):
             pytest.skip("SIGHUP not available on this platform")
         inst = _fresh_instance()
-        with patch("kuit.signals.bind") as mock_bind:
+        with patch("kuit.handlers.bind") as mock_bind:
             inst._restore_original_handlers()
         calls = [c[0][0] for c in mock_bind.call_args_list]
         assert signal.SIGHUP not in calls
@@ -748,7 +748,7 @@ class TestOnExtended:
     def test_on_change_detects_mtime_change(self) -> None:
         mock_exit = MagicMock()
         checker = on(func=mock_exit)
-        with patch("kuit.signals.get_mtime") as mock_mtime:
+        with patch("kuit.handlers.get_mtime") as mock_mtime:
             mock_mtime.return_value = 999999.0
             assert checker() is False
             mock_exit.assert_called_once_with(137)
@@ -759,13 +759,13 @@ class TestOnExtended:
 
     def test_on_change_with_sleep_parameter(self) -> None:
         checker = on()
-        with patch("kuit.signals.time.sleep") as mock_sleep:
+        with patch("kuit.handlers.time.sleep") as mock_sleep:
             checker(sleep=0.5)
             mock_sleep.assert_called_once_with(0.5)
 
     def test_on_change_uses_default_sleep_from_kw(self) -> None:
         checker = on(sleep=0.3)
-        with patch("kuit.signals.time.sleep") as mock_sleep:
+        with patch("kuit.handlers.time.sleep") as mock_sleep:
             checker()
             mock_sleep.assert_called_once_with(0.3)
 
@@ -781,7 +781,7 @@ class TestOnExtended:
     def test_sleep_stops_polling_on_change(self) -> None:
         mock_exit = MagicMock()
         checker = on(func=mock_exit)
-        with patch("kuit.signals.get_mtime") as mock_mtime:
+        with patch("kuit.handlers.get_mtime") as mock_mtime:
             # first call inside on_change sees changed mtime
             mock_mtime.return_value = 999999.0
             result = checker.sleep(1.0, poll=0.001)
@@ -789,7 +789,7 @@ class TestOnExtended:
             mock_exit.assert_called_once_with(137)
 
     def test_needrestart_triggers_with_custom_errno(self) -> None:
-        import kuit.signals as sig_mod
+        import kuit.handlers as sig_mod
 
         mock_exit = MagicMock()
         checker = on(func=mock_exit, signal=signal.SIGUSR1, errno=42)
@@ -801,7 +801,7 @@ class TestOnExtended:
             sig_mod.NeedRestart = False
 
     def test_needrestart_without_signal_does_nothing(self) -> None:
-        import kuit.signals as sig_mod
+        import kuit.handlers as sig_mod
 
         mock_exit = MagicMock()
         checker = on(func=mock_exit, signal=0)
@@ -817,19 +817,19 @@ class TestOnExtended:
     def test_custom_func_return_value_ignored(self) -> None:
         mock_exit = MagicMock(return_value="ignored")
         checker = on(func=mock_exit)
-        with patch("kuit.signals.get_mtime") as mock_mtime:
+        with patch("kuit.handlers.get_mtime") as mock_mtime:
             mock_mtime.return_value = 888888.0
             assert checker() is False
             mock_exit.assert_called_once()
 
     def test_signal_registration_and_handler(self) -> None:
         mock_exit = MagicMock()
-        with patch("kuit.signals.bind") as mock_bind:
+        with patch("kuit.handlers.bind") as mock_bind:
             on(func=mock_exit, signal=signal.SIGUSR2)
             mock_bind.assert_called_once_with(signal.SIGUSR2, ANY)
 
     def test_signal_unregistration_via_flag_reset(self) -> None:
-        import kuit.signals as sig_mod
+        import kuit.handlers as sig_mod
 
         mock_exit = MagicMock()
         checker = on(func=mock_exit, signal=signal.SIGUSR1)
@@ -846,16 +846,16 @@ class TestOnExtended:
     def test_on_invalid_path_file_not_found(self) -> None:
         mock_exit = MagicMock()
         checker = on(func=mock_exit)
-        with patch("kuit.signals.get_mtime") as mock_mtime:
+        with patch("kuit.handlers.get_mtime") as mock_mtime:
             mock_mtime.side_effect = FileNotFoundError
             assert checker() is False
 
     def test_on_logs_on_mtime_change(self) -> None:
         mock_exit = MagicMock()
         checker = on(func=mock_exit)
-        with patch("kuit.signals.get_mtime") as mock_mtime:
+        with patch("kuit.handlers.get_mtime") as mock_mtime:
             mock_mtime.return_value = 777777.0
-            with patch("kuit.signals.logger") as mock_logger:
+            with patch("kuit.handlers.logger") as mock_logger:
                 checker()
                 mock_logger.warning.assert_called()
                 args = " ".join(
@@ -865,7 +865,7 @@ class TestOnExtended:
 
     def test_on_sleep_uses_poll_kw_default(self) -> None:
         checker = on(poll=0.05)
-        with patch("kuit.signals.time.sleep") as mock_sleep:
+        with patch("kuit.handlers.time.sleep") as mock_sleep:
             checker.sleep(0.1)
             # should sleep at least once with poll=0.05
             assert mock_sleep.call_count >= 1
@@ -874,7 +874,7 @@ class TestOnExtended:
     def test_multiple_quit_at_instances_different_signals(self) -> None:
         mock_exit_a = MagicMock()
         mock_exit_b = MagicMock()
-        with patch("kuit.signals.bind"):
+        with patch("kuit.handlers.bind"):
             checker_a = on(func=mock_exit_a, signal=signal.SIGUSR1)
             checker_b = on(func=mock_exit_b, signal=signal.SIGUSR2)
             # Because at is cached, if args differ we get
@@ -883,7 +883,7 @@ class TestOnExtended:
 
     def test_on_change_returns_false_on_file_not_found(self) -> None:
         checker = on()
-        with patch("kuit.signals.get_mtime", side_effect=FileNotFoundError):
+        with patch("kuit.handlers.get_mtime", side_effect=FileNotFoundError):
             assert checker() is False
 
     def test_sleep_deadline_zero_returns_true(self) -> None:
@@ -915,7 +915,7 @@ class TestOnParametrized:
 
     @pytest.mark.parametrize("errno_val", (0, 1, 137, 255, 999))
     def test_custom_errno_values(self, errno_val: int) -> None:
-        import kuit.signals as sig_mod
+        import kuit.handlers as sig_mod
 
         mock_exit = MagicMock()
         on.cache_clear()  # type: ignore[assignment][attr-defined]
@@ -938,11 +938,11 @@ class TestOnQuitIntegration:
     def test_full_flow_signal_then_teardown_idempotent(self) -> None:
         inst = _fresh_instance()
         cb = MagicMock()
-        inst.quit(cb)
+        inst.on_exit(cb)
         with pytest.raises(SystemExit):
             inst._exit(signal.SIGTERM, None)
         # teardown already called by signal_handler
-        assert inst.already_called is True
+        assert inst._already_called is True
         cb.assert_called_once()
         # second teardown does nothing
         inst._teardown()
@@ -951,9 +951,9 @@ class TestOnQuitIntegration:
     def test_full_flow_exception_then_teardown_idempotent(self) -> None:
         inst = _fresh_instance()
         cb = MagicMock()
-        inst.quit(cb)
+        inst.on_exit(cb)
         inst._exceptions_hook(RuntimeError, RuntimeError("boom"), None)
-        assert inst.already_called is True
+        assert inst._already_called is True
         cb.assert_called_once()
         inst._teardown()
         cb.assert_called_once()
@@ -962,7 +962,7 @@ class TestOnQuitIntegration:
         inst = _fresh_instance()
         cb = MagicMock()
         inst._teardown()
-        inst.quit(cb)
+        inst.on_exit(cb)
         # callback was added after teardown, won't run on subsequent teardown
         # because already_called is True
         inst._teardown()
@@ -978,7 +978,7 @@ class TestOnQuitIntegration:
         calls: list[int] = []
         inst = _fresh_instance()
         for i in range(5):
-            inst.quit(lambda i=i: calls.append(i))
+            inst.on_exit(lambda i=i: calls.append(i))
         inst._teardown()
         assert calls == [0, 1, 2, 3, 4]
 
@@ -987,10 +987,10 @@ class TestOnQuitIntegration:
         caplog: pytest.LogCaptureFixture,
     ) -> None:
         inst = _fresh_instance()
-        inst.original_hook = lambda *_: (_ for _ in ()).throw(
+        inst._original_hook = lambda *_: (_ for _ in ()).throw(
             RuntimeError("orig"),
         )
-        with caplog.at_level("ERROR", logger="kuit.signals"):
+        with caplog.at_level("ERROR", logger="kuit.handlers"):
             inst._exceptions_hook(ValueError, ValueError("v"), None)
         assert "orig" in caplog.text
 
@@ -999,7 +999,7 @@ class TestOnQuitIntegration:
         inst._restore_original_handlers()
         # Should not raise when called twice
         inst._restore_original_handlers()
-        assert sys.excepthook is inst.original_hook
+        assert sys.excepthook is inst._original_hook
 
     def test_threading_handler_delegates_keyboard_interrupt(self) -> None:
         inst = _fresh_instance()
@@ -1009,7 +1009,7 @@ class TestOnQuitIntegration:
             None,
         )
         with patch.object(inst, "_proxy") as proxy:
-            inst.threading_handler(args)
+            inst._threading_handler(args)
             proxy.assert_called_once()
 
     def test_signal_handler_frame_argument_ignored(self) -> None:
@@ -1021,7 +1021,7 @@ class TestOnQuitIntegration:
 
     def test_inject_signal_handler_overwrites_existing(self) -> None:
         inst = _fresh_instance()
-        with patch("kuit.signals.bind") as mock_bind:
+        with patch("kuit.handlers.bind") as mock_bind:
             inst._inject_handler()
             assert mock_bind.call_count == 3
 

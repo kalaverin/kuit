@@ -525,16 +525,16 @@ wheels = [
 
 [[package]]
 name = "kain"
-version = "1.1.11"
+version = "1.2.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c3/ac/e578db71df25924dc2d6a716f18664f1658b280c4ab1465a57467b83061f/kain-1.1.11.tar.gz", hash = "sha256:575682cc51e2f1858151d691abae1b4452019552dfebf469f960203e020bb72d", size = 77041, upload-time = "2026-08-20T18:35:45.09Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ac/f7/ee6a8d24eee19bad807dba1876fc2dfccdd8008ca36413890439647ef4ac/kain-1.2.0.tar.gz", hash = "sha256:c5b9f3f9b97e6e3e7654d228958a1732b8dd4b9b59fbb549093d66353f66075b", size = 47172, upload-time = "2026-08-20T19:32:46.475Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8b/9d/90aba085951f076fc84988dd487ca7d148753c37bb3d0fbaf6df639d1624/kain-1.1.11-py3-none-any.whl", hash = "sha256:682653698790d052c070000931259465328ba9a6b46dffc7ce051463a4933c5f", size = 42961, upload-time = "2026-08-20T18:35:43.928Z" },
+    { url = "https://files.pythonhosted.org/packages/dc/c8/9a06b5d6f077cf963cbdd1341246d97b647e20c84aaf6d5108742aa4d898/kain-1.2.0-py3-none-any.whl", hash = "sha256:4aa12c6dffe12f913f18d971367ab09a7573b72347520e729f37d14bd42172c0", size = 20212, upload-time = "2026-08-20T19:32:45.339Z" },
 ]
 
 [[package]]
 name = "kuit"
-version = "0.0.3"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "kain" },
@@ -583,7 +583,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "kain", specifier = ">=1.1.11" }]
+requires-dist = [{ name = "kain", specifier = ">=1.2,<2" }]
 
 [package.metadata.requires-dev]
 build = [{ name = "setuptools" }]

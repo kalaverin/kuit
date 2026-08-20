@@ -24,7 +24,7 @@ from logging import getLogger
 from pathlib import Path
 from signal import signal as bind
 from types import FrameType, TracebackType
-from typing import Any, Protocol, cast
+from typing import Any, Protocol
 
 from kain import Who
 from kain.classes import Singleton
