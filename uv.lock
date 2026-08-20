@@ -524,9 +524,21 @@ wheels = [
 ]
 
 [[package]]
+name = "kain"
+version = "1.1.11"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c3/ac/e578db71df25924dc2d6a716f18664f1658b280c4ab1465a57467b83061f/kain-1.1.11.tar.gz", hash = "sha256:575682cc51e2f1858151d691abae1b4452019552dfebf469f960203e020bb72d", size = 77041, upload-time = "2026-08-20T18:35:45.09Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8b/9d/90aba085951f076fc84988dd487ca7d148753c37bb3d0fbaf6df639d1624/kain-1.1.11-py3-none-any.whl", hash = "sha256:682653698790d052c070000931259465328ba9a6b46dffc7ce051463a4933c5f", size = 42961, upload-time = "2026-08-20T18:35:43.928Z" },
+]
+
+[[package]]
 name = "kuit"
-version = "0.0.2"
+version = "0.0.3"
 source = { editable = "." }
+dependencies = [
+    { name = "kain" },
+]
 
 [package.dev-dependencies]
 build = [
@@ -571,6 +583,7 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [{ name = "kain", specifier = ">=1.1.11" }]
 
 [package.metadata.requires-dev]
 build = [{ name = "setuptools" }]
