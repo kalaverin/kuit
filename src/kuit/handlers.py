@@ -30,19 +30,15 @@ from kain import Who
 from kain.classes import Singleton
 
 __all__ = (
-    "on_exception",
+    "OnQuit",
     "on",
-    "register",
 )
 
 logger = getLogger(__name__)
 
-#: Global flag set to ``True`` when a signal handler requests a restart.
-#: Used by ``on`` to detect external restart requests.
 NeedRestart: bool = False
 
-#: Type for values accepted and returned by ``signal.signal``.
-_SignalHandler = (
+SignalHandler = (
     Callable[[int, FrameType | None], Any]
     | signal.Handlers
     | int
@@ -50,66 +46,13 @@ _SignalHandler = (
 )
 
 
-class _OnChangeCallable(Protocol):
+class OnChangeCallable(Protocol):
     def __call__(self, *, sleep: float = 0.0) -> bool: ...
 
-    #: Callable that sleeps while periodically checking for changes.
     sleep: Callable[[float, float], bool]
 
 
 class OnQuit(metaclass=Singleton):
-    def __init__(self) -> None:
-        #: List of no-argument functions to call during teardown.
-        self.callbacks: list[Callable[[], Any]] = []
-
-        #: List of exception hook functions with signature
-        #: ``(exc_type, exc_value, traceback) -> Any``.
-        self.hooks_chain: list[
-            Callable[
-                [type[BaseException], BaseException, TracebackType | None],
-                Any,
-            ],
-        ] = []
-
-        #: Saved reference to the original ``sys.excepthook``.
-        self.original_hook: Callable[
-            [type[BaseException], BaseException, TracebackType | None],
-            Any,
-        ] = sys.excepthook
-
-        #: Guard to ensure teardown runs only once.
-        self.already_called: bool = False
-
-        #: Bound method reference for use as ``sys.excepthook`` replacement.
-        self._proxy: Callable[..., Any] = self._exceptions_hook
-
-        #: Whether global hooks and handlers have been installed.
-        self._installed: bool = False
-
-        #: Whether :meth:`_teardown` has been registered with ``atexit``.
-        self._atexit_registered: bool = False
-
-        #: Original signal handlers captured during installation.
-        self._original_sigint: _SignalHandler = None
-        self._original_sigterm: _SignalHandler = None
-        self._original_sigquit: _SignalHandler = None
-
-    def _setup(self) -> None:
-        if self._installed:
-            return
-        self._installed = True
-        self.inject_hook()
-        self._inject_handler()
-        self._inject_threading_hook()
-
-    def _ensure_atexit(self) -> None:
-        if self._atexit_registered:
-            return
-        self._atexit_registered = True
-        atexit.register(self._teardown)
-
-    def inject_hook(self) -> None:
-        sys.excepthook = self._proxy
 
     def _exceptions_hook(
         self,
@@ -119,10 +62,10 @@ class OnQuit(metaclass=Singleton):
     ) -> None:
         self._setup()
         if sys.excepthook is not self._proxy:
-            self.hooks_chain.append(sys.excepthook)
-            self.inject_hook()
+            self._hooks_chain.append(sys.excepthook)
+            self._inject_hook()
 
-        for hook in (*self.hooks_chain, self.original_hook):
+        for hook in (*self._hooks_chain, self._original_hook):
             try:
                 hook(exc_type, exc_value, traceback)
             except Exception as e:
@@ -134,22 +77,7 @@ class OnQuit(metaclass=Singleton):
 
         self._teardown()
 
-    def _inject_handler(self) -> None:
-        self._original_sigint = bind(signal.SIGINT, self._exit)
-        self._original_sigterm = bind(signal.SIGTERM, self._exit)
-        if hasattr(signal, "SIGQUIT"):
-            self._original_sigquit = bind(signal.SIGQUIT, self._exit)
-
-    def _exit(self, _signum: int, _frame: FrameType | None) -> None:
-        self._setup()
-        self._teardown()
-        sys.exit(1)
-
-    def _inject_threading_hook(self) -> None:
-        """Replace ``threading.excepthook`` with our proxy."""
-        threading.excepthook = self.threading_handler
-
-    def threading_handler(self, args: threading.ExceptHookArgs) -> None:
+    def _threading_handler(self, args: threading.ExceptHookArgs) -> None:
         self._setup()
         if args.exc_type is None or args.exc_type is SystemExit:  # type: ignore[redundant-expr]  # pyright: ignore[reportUnnecessaryComparison]
             return
@@ -162,20 +90,83 @@ class OnQuit(metaclass=Singleton):
             args.exc_traceback,
         )
 
-    def _restore_original_handlers(self) -> None:
+    def __init__(self) -> None:
+        #: List of no-argument functions to call during teardown.
+        self._callbacks: list[Callable[[], Any]] = []
+
+        self._default_errno: int = 1
+
+        #: List of exception hook functions with signature
+        #: ``(exc_type, exc_value, traceback) -> Any``.
+        self._hooks_chain: list[
+            Callable[
+                [type[BaseException], BaseException, TracebackType | None],
+                Any,
+            ],
+        ] = []
+
+        #: Saved reference to the original ``sys.excepthook``.
+        self._original_hook: Callable[
+            [type[BaseException], BaseException, TracebackType | None],
+            Any,
+        ] = sys.excepthook
+
+        #: Guard to ensure teardown runs only once.
+        self._already_called: bool = False
+
+        #: Bound method reference for use as ``sys.excepthook`` replacement.
+        self._proxy: Callable[..., Any] = self._exceptions_hook
+
+        #: Whether global hooks and handlers have been installed.
+        self._installed: bool = False
+
+        #: Whether :meth:`_teardown` has been registered with ``atexit``.
+        self._atexit_registered: bool = False
+
+        #: Original signal handlers captured during installation.
+        self._original_sigint: SignalHandler = None
+        self._original_sigterm: SignalHandler = None
+        self._original_sigquit: SignalHandler = None
+
+    # inject the exception hook, signal handlers, and threading hook
+
+    def _exit(self, _signum: int, _frame: FrameType | None) -> None:
+        self._setup()
+        self._teardown()
+        sys.exit(self._default_errno)
+
+    def _inject_hook(self) -> None:
+        sys.excepthook = self._proxy
+
+    def _inject_handler(self) -> None:
+        self._original_sigint = bind(signal.SIGINT, self._exit)
+        self._original_sigterm = bind(signal.SIGTERM, self._exit)
+        if hasattr(signal, "SIGQUIT"):
+            self._original_sigquit = bind(signal.SIGQUIT, self._exit)
+
+    def _inject_threading_hook(self) -> None:
+        threading.excepthook = self._threading_handler
+
+    def _setup(self) -> None:
         if self._installed:
-            bind(signal.SIGINT, self._original_sigint)
-            bind(signal.SIGTERM, self._original_sigterm)
-            if hasattr(signal, "SIGQUIT"):
-                bind(signal.SIGQUIT, self._original_sigquit)
+            return
+        self._installed = True
+        self._inject_hook()
+        self._inject_handler()
+        self._inject_threading_hook()
 
-        sys.excepthook = self.original_hook
-        threading.excepthook = threading.__excepthook__  # type: ignore[attr-defined]
+    # register atexit to ensure teardown is called on normal exit
 
-    def quit(self, func: Callable[[], Any]) -> None:
+    def _ensure_atexit(self) -> None:
+        if self._atexit_registered:
+            return
+        self._atexit_registered = True
+        atexit.register(self._teardown)
+
+    def on_exit(self, func: Callable[[], Any]) -> None:
         self._setup()
         self._ensure_atexit()
-        self.callbacks.append(func)
+        self._callbacks.append(func)
 
     def on_exception(
         self,
@@ -184,15 +175,17 @@ class OnQuit(metaclass=Singleton):
             Any,
         ],
     ) -> None:
-        self.hooks_chain.append(func)
+        self._hooks_chain.append(func)
+
+    # teardown logic to call registered callbacks and restore original handlers
 
     def _teardown(self) -> None:
         self._setup()
-        if self.already_called:
+        if self._already_called:
             return
 
         try:
-            for func in self.callbacks:
+            for func in self._callbacks:
                 try:
                     func()
                 except BaseException as e:
@@ -202,8 +195,18 @@ class OnQuit(metaclass=Singleton):
                         exc_info=e,
                     )
         finally:
-            self.already_called = True
+            self._already_called = True
             self._restore_original_handlers()
+
+    def _restore_original_handlers(self) -> None:
+        if self._installed:
+            bind(signal.SIGINT, self._original_sigint)
+            bind(signal.SIGTERM, self._original_sigterm)
+            if hasattr(signal, "SIGQUIT"):
+                bind(signal.SIGQUIT, self._original_sigquit)
+
+        sys.excepthook = self._original_hook
+        threading.excepthook = threading.__excepthook__  # type: ignore[attr-defined]
 
 
 @cache
@@ -222,7 +225,7 @@ def on(
     signal: int = 0,
     errno: int = 137,
     **kw: Any,
-) -> _OnChangeCallable:
+) -> OnChangeCallable:
     def handler(*_: Any) -> None:
         global NeedRestart  # noqa: PLW0603
         NeedRestart = True
@@ -273,8 +276,3 @@ def on(
 
     on_change.sleep = sleep  # type: ignore[attr-defined]  # pyright: ignore[reportFunctionMemberAccess]
     return on_change  # type: ignore[return-value]  # pyright: ignore[reportReturnType]
-
-
-registry = cast("OnQuit", OnQuit())
-register = registry.quit
-on_exception = registry.on_exception

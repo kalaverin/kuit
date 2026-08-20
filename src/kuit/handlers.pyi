@@ -3,17 +3,19 @@ from pathlib import Path
 from types import FrameType, TracebackType
 from typing import Any, Protocol
 
-from kain.classes import Singleton
+__all__ = (
+    "OnQuit",
+    "on",
+)
 
-__all__ = ("on_exception", "on", "register")
 
 NeedRestart: bool
 
-class _OnChangeCallable(Protocol):
+class OnChangeCallable(Protocol):
     def __call__(self, *, sleep: float = 0.0) -> bool: ...
     sleep: Callable[[float, float], bool]
 
-class OnQuit(metaclass=Singleton):
+class OnQuit:
     callbacks: list[Callable[[], Any]]
     hooks_chain: list[
         Callable[
@@ -63,7 +65,7 @@ class OnQuit(metaclass=Singleton):
     ) -> None: ...
     def _teardown(self) -> None: ...
 
-def register(func: Callable[[], Any]) -> None: ...
+def on_exit(func: Callable[[], Any]) -> None: ...
 def on_exception(
     func: Callable[
         [type[BaseException], BaseException, TracebackType | None],
@@ -78,6 +80,4 @@ def on(
     signal: int = 0,
     errno: int = 137,
     **kw: Any,
-) -> _OnChangeCallable: ...
-
-registry: OnQuit
+) -> OnChangeCallable: ...
