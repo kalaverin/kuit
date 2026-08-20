@@ -1,0 +1,193 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = [
+  "setuptools"
+]
+
+[dependency-groups]
+build = [
+  "setuptools"
+]
+dev = [
+  "async-asgi-testclient>=1.4.11",
+  "bandit[toml]>=1.9.4",
+  "basedmypy>=2.10.0",
+  "basedpyright>=1.39.4",
+  "better-exceptions>=0.3.3",
+  "black>=26.3.1",
+  "colorama>=0.4.6",
+  "faker>=40.18.0",
+  "hexora>=0.2.4",
+  "pre-commit>=4.6.0",
+  "pyrefly>=1.0.0",
+  "pytest-asyncio>=1.3.0",
+  "pytest-check>=2.8.0",
+  "pytest-clarity>=1.0.1",
+  "pytest-cov>=7.1.0",
+  "pytest-dotenv>=0.5.2",
+  "pytest-icdiff>=0.9",
+  "pytest-mock>=3.15.1",
+  "pytest-randomly>=4.1.0",
+  "pytest-timeout>=2.4.0",
+  "pytest-xdist>=3.8.0",
+  "pytest>=9.0.3",
+  "python-lsp-server[all]>=1.14.0",
+  "refurb>=2.3.1",
+  "righttyper>=0.1.0",
+  "ruff>=0.15.13",
+  "structlog>=25.5.0",
+  "time-machine>=3.2.0",
+  "ty>=0.0.36",
+  "typing-extensions>=4.15.0",
+  "typing-inspection>=0.4.2",
+  "uv-publish>=1.4",
+  "vulture>=2.16",
+  "yamlfix>=1.19.1",
+  "yamllint>=1.38.0"
+]
+
+[project]
+authors = [
+  {name = "Alex Kalaverin", email = "alex@kalaver.in"}
+]
+classifiers = [
+  "Intended Audience :: Developers",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "License :: OSI Approved :: BSD License",
+  "Operating System :: OS Independent"
+]
+dependencies = [
+  "kain>=1.1.9,<2"
+]
+description = "kuit"
+name = "kuit"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+version = "0.0.1"
+
+[project.urls]
+Homepage = "https://kalaver.in"
+
+[tool.bandit]
+exclude_dirs = [".venv", ".git"]
+
+[tool.black]
+line-length = 79
+target-version = ["py312"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == .__main__.:",
+  "^\\s+\\.{3}",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "pass"
+]
+fail_under = 90
+show_missing = true
+
+[tool.coverage.run]
+branch = true
+omit = [
+  "*/migrations/*",
+  "*/__init__.py",
+  "*/if TYPE_CHECKING:*",
+  "tests/*"
+]
+source = ["src"]
+
+[tool.pylint.messages_control]
+enable = "all"
+
+[tool.pytest.ini_options]
+addopts = [
+  "-ra",
+  "--strict-config",
+  "--strict-markers",
+  "--tb=short",
+  "--timeout=60"
+]
+faulthandler_timeout = 60
+filterwarnings = [
+  "default"
+]
+markers = [
+]
+minversion = "8.0"
+testpaths = ["tests"]
+
+[tool.refurb]
+ignore = [
+  123,
+  149,
+  176,
+  191
+]
+
+[tool.ruff]
+exclude = []
+extend = "etc/lint/ruff.toml"
+
+[tool.ruff.lint.isort]
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "first-party",
+  "local-project",
+  "local-folder"
+]
+
+[tool.ruff.lint.isort.sections]
+local-project = ["kuit"]
+
+[tool.ruff.lint.per-file-ignores]
+"*.pyi" = [
+  "ANN",
+  "N",
+  "PYI"
+]
+"contrib/*" = []
+"docs/*" = [
+  "INP001",  # File `docs/conf.py` is part of an implicit namespace package. Add an `__init__.py`.
+  "I001",  # [*] Import block is un-sorted or un-formatted
+  "PTH100",  # `os.path.abspath()` should be replaced by `Path.resolve()`
+  "A001"  # Variable `copyright` is shadowing a Python builtin
+]
+"src/*" = []
+"tests/*" = [
+  "ANN001",  # Missing type annotation for function argument `mock_workflow_is_replaying`
+  "ANN401",  # Dynamically typed expressions (typing.Any) are disallowed in `key`
+  "ARG001",  # Unused function argument: `node`
+  "ARG002",  # Unused method argument: `mock_workflow_info`
+  "ARG005",  # Unused lambda argument: `cls`
+  "B018",  # Found useless expression. Either assign it to a variable or remove it.
+  "FBT003",  # Boolean positional value in function call
+  "INP001",  # File `tests/workflows/test_turnover_workflows.py` is part of an implicit namespace package. Add an `__init__.py`.
+  "N805",  # First argument of a method should be named `self`
+  "N805",  # First argument of a method should be named `self`
+  "PLC0415",  # `import` should be at the top-level of a file
+  "PLR0124",  # Name compared with itself, consider replacing `Nothing == Nothing`
+  "PLR2004",  # Magic value used in comparison, consider replacing `3` with a constant variable
+  "PYI024",  # Use `typing.NamedTuple` instead of `collections.namedtuple`
+  "S101",  # Use of `assert` detected
+  "SLF001",  # Private member accessed: `_proxy`
+  "TC002",  # Move third-party import `faker.Faker` into a type-checking block
+  "TC003",  # Move standard library import `collections.abc.Generator` into a type-checking block
+  "TRY301"  # Abstract `raise` to an inner function
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ty.rules]
+possibly-missing-attribute = "ignore"
+
+[tool.uv]
+default-groups = [
+  "dev"
+]

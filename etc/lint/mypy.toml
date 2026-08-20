@@ -1,0 +1,20 @@
+[tool.mypy]
+cache_fine_grained = true
+disable_error_code = [
+]
+# using Any type in return for decorated (e.g. @property) functions
+disallow_any_decorated = false
+disallow_any_explicit = false
+# using Any type in expressions
+disallow_any_expr = false
+# e.g., we override base class method without import types for them
+disallow_any_unimported = false
+# it's error told us that some base class has "Any" type
+disallow_subclassing_any = false
+extra_checks = true
+follow_imports = "silent"
+follow_imports_for_stubs = true
+# many modules have no stubs, skip these errors
+ignore_missing_imports = true
+mypy_path = "src"
+plugins = ["pydantic.mypy"]

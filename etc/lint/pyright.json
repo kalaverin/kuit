@@ -1,0 +1,56 @@
+{
+  "include": [
+    "../../src/kuit/"
+  ],
+  "exclude": [
+    "**/.*",
+    "**/__pycache__/"
+  ],
+  "ignore": [
+    "../../src/kuit/settings.py"
+  ],
+  "executionEnvironments": [
+    {
+      "pythonVersion": "3.12",
+      "root": "../../"
+    }
+  ],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "recommended",
+  "enableExperimentalFeatures": true,
+  "analyzeUnannotatedFunctions": true,
+  "reportAny": false,
+  "reportCallInDefaultInitializer": true,
+  "reportConstantRedefinition": true,
+  "reportDuplicateImport": true,
+  "reportExplicitAny": false,
+  "reportIgnoreCommentWithoutRule": true,
+  "reportImplicitAbstractClass": true,
+  "reportImplicitRelativeImport": true,
+  "reportImplicitStringConcatenation": false,
+  "reportImportCycles": false,
+  "reportIncompatibleVariableOverride": "information",
+  "reportInvalidCast": true,
+  "reportMissingImports": true,
+  "reportMissingParameterType": true,
+  "reportMissingTypeStubs": "information",
+  "reportPrivateLocalImportUsage": true,
+  "reportPrivateUsage": "information",
+  "reportUnannotatedClassAttribute": true,
+  "reportUninitializedInstanceVariable": "information",
+  "reportUnknownArgumentType": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownParameterType": false,
+  "reportUnknownVariableType": false,
+  "reportUnnecessaryIsInstance": "information",
+  "reportUnreachable": "information",
+  "reportUnusedCallResult": false,
+  "reportUnusedImport": true,
+  "reportUnusedParameter": "information",
+  "reportUnusedVariable": "information",
+  "strictDictionaryInference": true,
+  "strictGenericNarrowing": true,
+  "strictListInference": true,
+  "strictParameterNoneValue": true,
+  "strictSetInference": true
+}

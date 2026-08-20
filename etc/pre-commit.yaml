@@ -1,0 +1,202 @@
+---
+default_language_version:
+  python: python3.12
+
+fail_fast: true
+
+repos:
+  - repo: local
+    hooks:
+      - id: lint-black
+        name: force black
+        entry: uv run --quiet black --diff --color --quiet --line-length 79 --target-version
+          py312 'src/' 'tests/'
+        language: system
+        pass_filenames: false
+
+      - id: lint-ruff
+        name: force ruff
+        entry: uv run --quiet ruff check --quiet 'src/' 'tests/'
+        language: system
+        pass_filenames: false
+
+      - id: lint-yaml
+        name: format yaml
+        entry: uv run --quiet yamlfix --config-file etc/lint/yamlfix.toml --exclude
+          '.*/**/*.yml' --exclude '.*/**/*.yaml' .
+        language: system
+        pass_filenames: false
+
+      - id: check-yaml
+        name: check yaml
+        entry: uv run --quiet yamllint --format parsable --config-file etc/lint/yamllint.yaml
+          .
+        language: system
+        pass_filenames: false
+
+      - id: check-pyrefly
+        name: check pyrefly (bad code detection)
+        entry: uv run --quiet pyrefly check --config etc/lint/pyrefly.toml src
+        language: system
+        pass_filenames: false
+
+      - id: check-mypy
+        name: check mypy (static check)
+        entry: uv run --quiet mypy --cache-fine-grained --show-traceback --config
+          etc/lint/mypy.toml 'src/'
+        language: system
+        pass_filenames: false
+
+      - id: check-vulture
+        name: check vulture (unused code detection)
+        entry: uv run --quiet vulture --min-confidence 66 'src/'
+        language: system
+        pass_filenames: false
+
+      - id: check-pyright
+        name: check pyright (consistency check)
+        entry: uv run --quiet basedpyright --project etc/lint/pyright.json
+        language: system
+        pass_filenames: false
+
+      - id: check-refurb
+        name: check refurb (bad solutions detection)
+        entry: uv run --quiet refurb --quiet --enable-all --python-version 3.12 --config-file
+          pyproject.toml --sort filename 'src/' -- --config-file etc/lint/mypy.toml
+        language: system
+        pass_filenames: false
+
+      - id: check-bandit
+        name: check bandit (security audit)
+        entry: uv run --quiet bandit --quiet --recursive --severity-level all --confidence-level
+          all --configfile pyproject.toml 'src/'
+        language: system
+        pass_filenames: false
+
+      - id: check-hexora
+        name: check hexora (bad engineering pattern and malware security audit)
+        entry: uv run --quiet hexora audit 'src/'
+        language: system
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: forbid-submodules
+        name: forbid git submodules
+      - id: check-executables-have-shebangs
+        name: executables must have shebangs
+      - id: check-symlinks
+        name: validate symlinks
+      - id: check-json
+        name: validate json files
+        exclude: .*/
+      - id: check-toml
+        name: validate toml files
+      - id: check-yaml
+        name: validate yaml files
+      - id: check-added-large-files
+        name: prevent adding large files
+      - id: check-ast
+        name: validate python syntax
+      - id: check-case-conflict
+        name: avoid case conflicts
+      - id: check-merge-conflict
+        name: avoid merge conflict markers
+      - id: check-vcs-permalinks
+        name: validate vcs permalinks
+      - id: check-builtin-literals
+        name: avoid using builtin literals as function names
+      - id: debug-statements
+        name: avoid debug statements
+      - id: detect-private-key
+        name: avoid committing private keys
+      - id: mixed-line-ending
+        name: avoid mixed line endings
+      - id: end-of-file-fixer
+        name: ensure file ends with correct newline
+      - id: trailing-whitespace
+        name: strip trailing whitespace
+      - id: pretty-format-json
+        name: pretty format json files
+        args:
+          - --autofix
+          - --no-ensure-ascii
+          - --no-sort-keys
+        exclude: .*/
+      - id: requirements-txt-fixer
+        name: fix requirements.txt files
+      - id: name-tests-test
+        name: enforce test file naming convention
+        exclude: tests/(mocks|syspath).py
+        args:
+          - --pytest-test-first
+  - repo: https://github.com/sirosen/texthooks
+    rev: 0.7.1
+    hooks:
+      - id: fix-spaces
+        name: replace multiple spaces with a single space
+      - id: fix-ligatures
+        name: replace common ligatures
+      - id: forbid-bidi-controls
+        name: forbid bidirectional control characters
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.16.0
+    hooks:
+      - id: pretty-format-ini
+        name: pretty format ini files
+        args:
+          - --autofix
+      - id: pretty-format-toml
+        name: pretty format toml files
+        args:
+          - --autofix
+  - repo: https://github.com/dannysepler/rm_unneeded_f_str
+    rev: v0.2.0
+    hooks:
+      - id: rm-unneeded-f-str
+        name: remove unneeded f-strings
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-no-eval
+        name: forbid any eval
+      - id: python-no-log-warn
+        name: use log.warning instead of log.warn
+      - id: python-check-mock-methods
+        name: use mock.method instead of mock.methodname
+      - id: python-check-blanket-noqa
+        name: avoid blanket noqa
+      - id: python-use-type-annotations
+        name: enforce type annotations
+      - id: python-check-blanket-type-ignore
+        name: avoid blanket type ignore
+        exclude: app/storages/bigquery/client.py
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.5.6
+    hooks:
+      - id: remove-crlf
+        name: remove CRLF line endings
+      - id: remove-tabs
+        name: remove tabs
+        exclude: (Makefile)$
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.2
+    hooks:
+      - id: pyupgrade
+        name: upgrade python syntax
+        args:
+          - --py312-plus
+  - repo: https://github.com/MarcoGorelli/absolufy-imports
+    rev: v0.3.1
+    hooks:
+      - id: absolufy-imports
+        name: convert relative imports to absolute imports
+  - repo: https://github.com/MarcoGorelli/auto-walrus
+    rev: 0.4.1
+    hooks:
+      - id: auto-walrus
+        name: convert to use the walrus operator
+        args:
+          - --line-length
+          - '79'

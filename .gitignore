@@ -13,7 +13,3 @@ __pycache__/
 !.envrc
 !.gitattributes
 !.gitignore
-
-!etc/lint/.markdownlint-cli2.jsonc
-
-uv.lock

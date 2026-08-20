@@ -1,0 +1,25 @@
+check-unannotated-defs = true
+disable-search-path-heuristics = false
+ignore-errors-in-generated-code = false
+ignore-missing-imports = []
+infer-return-types = "checked"
+infer-with-first-use = true
+permissive-ignores = false
+preset = "strict"
+project-excludes = [
+  "**/.*/",
+  "**/.[!/.]*/**",
+  "**/__pycache__",
+  "**/node_modules/**",
+  "**/tests/**"
+]
+project-includes = ["**/src/kuit/*.py*"]
+python-version = "3.12"
+replace-imports-with-any = []
+search-path = ["."]
+site-package-path = []
+skip-interpreter-query = false
+strict-callable-subtyping = true
+use-ignore-files = true
+
+[errors]
