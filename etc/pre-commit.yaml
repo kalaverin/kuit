@@ -151,7 +151,7 @@ repos:
         name: pretty format toml files
         args:
           - --autofix
-        exclude: uv.toml
+        exclude: uv.lock
   - repo: https://github.com/dannysepler/rm_unneeded_f_str
     rev: v0.2.0
     hooks:
@@ -172,7 +172,6 @@ repos:
         name: enforce type annotations
       - id: python-check-blanket-type-ignore
         name: avoid blanket type ignore
-        exclude: app/storages/bigquery/client.py
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.5.6
     hooks:
