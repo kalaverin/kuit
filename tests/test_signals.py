@@ -1,4 +1,4 @@
-"""Tests for kuit.handlers module."""
+"""Tests for zx.quit.handlers module."""
 
 from __future__ import annotations
 
@@ -11,9 +11,9 @@ from typing import Any, Never
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from kain.classes import Nothing
 
-from kuit.handlers import (
+from zx.core.classes import Nothing
+from zx.quit.handlers import (
     NeedRestart,
     OnQuit,
     get_mtime,
@@ -110,7 +110,7 @@ class TestOnSystemExit:
         callback = MagicMock(side_effect=RuntimeError("boom"))
         inst = _fresh_instance()
         inst.on_exit(callback)
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             inst._teardown()
         assert "boom" in caplog.text
 
@@ -147,7 +147,7 @@ class TestOnSystemExit:
     def test_restore_original_handlers_resets_sigquit(self) -> None:
         inst = _fresh_instance()
         inst._setup()
-        with patch("kuit.handlers.bind") as mock_bind:
+        with patch("zx.quit.handlers.bind") as mock_bind:
             inst._restore_original_handlers()
         calls = [c[0][0] for c in mock_bind.call_args_list]
         assert signal.SIGINT in calls
@@ -209,8 +209,8 @@ class TestOnSystemExit:
     def test_on_quit_init_does_not_install(self) -> None:
         """Construction must not touch global hooks, handlers, or atexit."""
         with (
-            patch("kuit.handlers.atexit.register") as mock_atexit,
-            patch("kuit.handlers.bind") as mock_bind,
+            patch("zx.quit.handlers.atexit.register") as mock_atexit,
+            patch("zx.quit.handlers.bind") as mock_bind,
         ):
             _fresh_instance()
         mock_atexit.assert_not_called()
@@ -220,8 +220,8 @@ class TestOnSystemExit:
         """install() registers excepthook, threading hook, signals, atexit."""
         inst = _fresh_instance()
         with (
-            patch("kuit.handlers.atexit.register") as mock_atexit,
-            patch("kuit.handlers.bind") as mock_bind,
+            patch("zx.quit.handlers.atexit.register") as mock_atexit,
+            patch("zx.quit.handlers.bind") as mock_bind,
         ):
             inst._setup()
         mock_atexit.assert_not_called()
@@ -236,7 +236,7 @@ class TestOnSystemExit:
     def test_install_is_idempotent(self) -> None:
         """Repeated install() calls must not register hooks again."""
         inst = _fresh_instance()
-        with patch("kuit.handlers.bind") as mock_bind:
+        with patch("zx.quit.handlers.bind") as mock_bind:
             inst._setup()
             inst._setup()
         # SIGINT, SIGTERM, SIGQUIT = 3 calls total.
@@ -311,11 +311,11 @@ class TestOn:
         assert checker.sleep(0.0, poll=0.1) is True
 
     def test_on_registers_signal_handler(self) -> None:
-        import kuit.handlers as sig_mod
+        import zx.quit.handlers as sig_mod
 
         mock_exit = MagicMock()
         on.cache_clear()  # type: ignore[assignment][attr-defined]
-        with patch("kuit.handlers.bind") as mock_bind:
+        with patch("zx.quit.handlers.bind") as mock_bind:
             on(func=mock_exit, signal=signal.SIGUSR1)
             mock_bind.assert_called_once_with(signal.SIGUSR1, ANY)
         handler = mock_bind.call_args[0][1]
@@ -325,7 +325,7 @@ class TestOn:
         sig_mod.NeedRestart = False
 
     def test_on_on_change_triggers_when_needrestart_set(self) -> None:
-        import kuit.handlers as sig_mod
+        import zx.quit.handlers as sig_mod
 
         mock_exit = MagicMock()
         on.cache_clear()  # type: ignore[assignment][attr-defined]
@@ -340,7 +340,7 @@ class TestOn:
     def test_on_on_change_file_not_found(self) -> None:
         mock_exit = MagicMock()
         on.cache_clear()  # type: ignore[assignment][attr-defined]
-        with patch("kuit.handlers.get_mtime") as mock_mtime:
+        with patch("zx.quit.handlers.get_mtime") as mock_mtime:
             mock_mtime.return_value = 1.0
             checker = on(func=mock_exit)
             mock_mtime.side_effect = FileNotFoundError
@@ -359,7 +359,7 @@ class TestModuleAttributes:
         assert isinstance(NeedRestart, bool)
 
     def test_all_exports_exist(self) -> None:
-        import kuit.handlers as mod
+        import zx.quit.handlers as mod
 
         for name in mod.__all__:
             assert hasattr(mod, name)
@@ -465,7 +465,7 @@ class TestOnQuitTeardownExtended:
     ) -> None:
         inst = _fresh_instance()
         inst.on_exit(lambda: (_ for _ in ()).throw(SystemExit("die")))
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             inst._teardown()
         assert "die" in caplog.text
 
@@ -476,7 +476,7 @@ class TestOnQuitTeardownExtended:
         original_excepthook = sys.excepthook
         inst = _fresh_instance()
         inst.on_exit(lambda: (_ for _ in ()).throw(RuntimeError("boom")))
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             inst._teardown()
         assert sys.excepthook is original_excepthook
 
@@ -522,7 +522,7 @@ class TestOnQuitHooksExtended:
 
         inst.on_exception(bad_hook)
         inst.on_exception(good_hook)
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             inst._exceptions_hook(RuntimeError, RuntimeError("x"), None)
         assert calls == ["bad", "good"]
         assert "hook boom" in caplog.text
@@ -685,14 +685,14 @@ class TestOnQuitSignalExtended:
     )
     def test_inject_signal_handler_binds_signal(self, sig: int) -> None:
         inst = _fresh_instance()
-        with patch("kuit.handlers.bind") as mock_bind:
+        with patch("zx.quit.handlers.bind") as mock_bind:
             inst._inject_handler()
         calls = [c[0][0] for c in mock_bind.call_args_list]
         assert sig in calls
 
     def test_inject_signal_handler_does_not_bind_sighup(self) -> None:
         inst = _fresh_instance()
-        with patch("kuit.handlers.bind") as mock_bind:
+        with patch("zx.quit.handlers.bind") as mock_bind:
             inst._inject_handler()
         calls = [c[0][0] for c in mock_bind.call_args_list]
         assert getattr(signal, "SIGHUP", -1) not in calls
@@ -706,7 +706,7 @@ class TestOnQuitSignalExtended:
         original = signal.signal(sig, signal.SIG_DFL)
         try:
             inst._setup()
-            with patch("kuit.handlers.bind") as mock_bind:
+            with patch("zx.quit.handlers.bind") as mock_bind:
                 inst._restore_original_handlers()
             calls = {c[0][0]: c[0][1] for c in mock_bind.call_args_list}
             assert calls[sig] is original
@@ -717,7 +717,7 @@ class TestOnQuitSignalExtended:
         if not hasattr(signal, "SIGHUP"):
             pytest.skip("SIGHUP not available on this platform")
         inst = _fresh_instance()
-        with patch("kuit.handlers.bind") as mock_bind:
+        with patch("zx.quit.handlers.bind") as mock_bind:
             inst._restore_original_handlers()
         calls = [c[0][0] for c in mock_bind.call_args_list]
         assert signal.SIGHUP not in calls
@@ -748,7 +748,7 @@ class TestOnExtended:
     def test_on_change_detects_mtime_change(self) -> None:
         mock_exit = MagicMock()
         checker = on(func=mock_exit)
-        with patch("kuit.handlers.get_mtime") as mock_mtime:
+        with patch("zx.quit.handlers.get_mtime") as mock_mtime:
             mock_mtime.return_value = 999999.0
             assert checker() is False
             mock_exit.assert_called_once_with(137)
@@ -759,13 +759,13 @@ class TestOnExtended:
 
     def test_on_change_with_sleep_parameter(self) -> None:
         checker = on()
-        with patch("kuit.handlers.time.sleep") as mock_sleep:
+        with patch("zx.quit.handlers.time.sleep") as mock_sleep:
             checker(sleep=0.5)
             mock_sleep.assert_called_once_with(0.5)
 
     def test_on_change_uses_default_sleep_from_kw(self) -> None:
         checker = on(sleep=0.3)
-        with patch("kuit.handlers.time.sleep") as mock_sleep:
+        with patch("zx.quit.handlers.time.sleep") as mock_sleep:
             checker()
             mock_sleep.assert_called_once_with(0.3)
 
@@ -781,7 +781,7 @@ class TestOnExtended:
     def test_sleep_stops_polling_on_change(self) -> None:
         mock_exit = MagicMock()
         checker = on(func=mock_exit)
-        with patch("kuit.handlers.get_mtime") as mock_mtime:
+        with patch("zx.quit.handlers.get_mtime") as mock_mtime:
             # first call inside on_change sees changed mtime
             mock_mtime.return_value = 999999.0
             result = checker.sleep(1.0, poll=0.001)
@@ -789,7 +789,7 @@ class TestOnExtended:
             mock_exit.assert_called_once_with(137)
 
     def test_needrestart_triggers_with_custom_errno(self) -> None:
-        import kuit.handlers as sig_mod
+        import zx.quit.handlers as sig_mod
 
         mock_exit = MagicMock()
         checker = on(func=mock_exit, signal=signal.SIGUSR1, errno=42)
@@ -801,7 +801,7 @@ class TestOnExtended:
             sig_mod.NeedRestart = False
 
     def test_needrestart_without_signal_does_nothing(self) -> None:
-        import kuit.handlers as sig_mod
+        import zx.quit.handlers as sig_mod
 
         mock_exit = MagicMock()
         checker = on(func=mock_exit, signal=0)
@@ -817,19 +817,19 @@ class TestOnExtended:
     def test_custom_func_return_value_ignored(self) -> None:
         mock_exit = MagicMock(return_value="ignored")
         checker = on(func=mock_exit)
-        with patch("kuit.handlers.get_mtime") as mock_mtime:
+        with patch("zx.quit.handlers.get_mtime") as mock_mtime:
             mock_mtime.return_value = 888888.0
             assert checker() is False
             mock_exit.assert_called_once()
 
     def test_signal_registration_and_handler(self) -> None:
         mock_exit = MagicMock()
-        with patch("kuit.handlers.bind") as mock_bind:
+        with patch("zx.quit.handlers.bind") as mock_bind:
             on(func=mock_exit, signal=signal.SIGUSR2)
             mock_bind.assert_called_once_with(signal.SIGUSR2, ANY)
 
     def test_signal_unregistration_via_flag_reset(self) -> None:
-        import kuit.handlers as sig_mod
+        import zx.quit.handlers as sig_mod
 
         mock_exit = MagicMock()
         checker = on(func=mock_exit, signal=signal.SIGUSR1)
@@ -846,16 +846,16 @@ class TestOnExtended:
     def test_on_invalid_path_file_not_found(self) -> None:
         mock_exit = MagicMock()
         checker = on(func=mock_exit)
-        with patch("kuit.handlers.get_mtime") as mock_mtime:
+        with patch("zx.quit.handlers.get_mtime") as mock_mtime:
             mock_mtime.side_effect = FileNotFoundError
             assert checker() is False
 
     def test_on_logs_on_mtime_change(self) -> None:
         mock_exit = MagicMock()
         checker = on(func=mock_exit)
-        with patch("kuit.handlers.get_mtime") as mock_mtime:
+        with patch("zx.quit.handlers.get_mtime") as mock_mtime:
             mock_mtime.return_value = 777777.0
-            with patch("kuit.handlers.logger") as mock_logger:
+            with patch("zx.quit.handlers.logger") as mock_logger:
                 checker()
                 mock_logger.warning.assert_called()
                 args = " ".join(
@@ -865,7 +865,7 @@ class TestOnExtended:
 
     def test_on_sleep_uses_poll_kw_default(self) -> None:
         checker = on(poll=0.05)
-        with patch("kuit.handlers.time.sleep") as mock_sleep:
+        with patch("zx.quit.handlers.time.sleep") as mock_sleep:
             checker.sleep(0.1)
             # should sleep at least once with poll=0.05
             assert mock_sleep.call_count >= 1
@@ -874,7 +874,7 @@ class TestOnExtended:
     def test_multiple_quit_at_instances_different_signals(self) -> None:
         mock_exit_a = MagicMock()
         mock_exit_b = MagicMock()
-        with patch("kuit.handlers.bind"):
+        with patch("zx.quit.handlers.bind"):
             checker_a = on(func=mock_exit_a, signal=signal.SIGUSR1)
             checker_b = on(func=mock_exit_b, signal=signal.SIGUSR2)
             # Because at is cached, if args differ we get
@@ -883,7 +883,10 @@ class TestOnExtended:
 
     def test_on_change_returns_false_on_file_not_found(self) -> None:
         checker = on()
-        with patch("kuit.handlers.get_mtime", side_effect=FileNotFoundError):
+        with patch(
+            "zx.quit.handlers.get_mtime",
+            side_effect=FileNotFoundError,
+        ):
             assert checker() is False
 
     def test_sleep_deadline_zero_returns_true(self) -> None:
@@ -915,7 +918,7 @@ class TestOnParametrized:
 
     @pytest.mark.parametrize("errno_val", (0, 1, 137, 255, 999))
     def test_custom_errno_values(self, errno_val: int) -> None:
-        import kuit.handlers as sig_mod
+        import zx.quit.handlers as sig_mod
 
         mock_exit = MagicMock()
         on.cache_clear()  # type: ignore[assignment][attr-defined]
@@ -990,7 +993,7 @@ class TestOnQuitIntegration:
         inst._original_hook = lambda *_: (_ for _ in ()).throw(
             RuntimeError("orig"),
         )
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             inst._exceptions_hook(ValueError, ValueError("v"), None)
         assert "orig" in caplog.text
 
@@ -1021,7 +1024,7 @@ class TestOnQuitIntegration:
 
     def test_inject_signal_handler_overwrites_existing(self) -> None:
         inst = _fresh_instance()
-        with patch("kuit.handlers.bind") as mock_bind:
+        with patch("zx.quit.handlers.bind") as mock_bind:
             inst._inject_handler()
             assert mock_bind.call_count == 3
 

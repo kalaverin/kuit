@@ -11,10 +11,12 @@ disallow_any_expr = false
 disallow_any_unimported = false
 # it's error told us that some base class has "Any" type
 disallow_subclassing_any = false
+explicit_package_bases = true
 extra_checks = true
 follow_imports = "silent"
 follow_imports_for_stubs = true
 # many modules have no stubs, skip these errors
 ignore_missing_imports = true
 mypy_path = "src"
+namespace_packages = true
 plugins = ["pydantic.mypy"]

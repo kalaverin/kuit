@@ -1,12 +1,12 @@
 """
 Example:
-    >>> import kuit
-    >>> @kuit.register
+    >>> import zx.quit
+    >>> @zx.quit.register
     ... def cleanup():
     ...     print("Shutting down...")
 
     >>> # In a daemon/main loop, check for file changes every 2.5s
-    >>> checker = kuit.on(signal=signal.SIGUSR1)  # Also exit on SIGUSR1
+    >>> checker = zx.quit.on(signal=signal.SIGUSR1)  # Also exit on SIGUSR1
     >>> while checker.sleep(60):  # Returns False when exiting
     ...     pass
 """
@@ -26,8 +26,8 @@ from signal import signal as bind
 from types import FrameType, TracebackType
 from typing import Any, Protocol
 
-from kain import Who
-from kain.classes import Singleton
+from zx.core import Who
+from zx.core.classes import Singleton
 
 __all__ = (
     "OnQuit",

@@ -1,13 +1,13 @@
 {
   "include": [
-    "../../src/kuit/"
+    "../../src/zx/"
   ],
   "exclude": [
     "**/.*",
     "**/__pycache__/"
   ],
   "ignore": [
-    "../../src/kuit/settings.py"
+    "../../src/zx/settings.py"
   ],
   "executionEnvironments": [
     {

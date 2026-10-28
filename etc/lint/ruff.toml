@@ -3,6 +3,7 @@ exclude = [
   ".git"
 ]
 line-length = 79
+namespace-packages = ["src/zx"]
 output-format = "full"
 target-version = "py312"
 
@@ -103,7 +104,7 @@ multiline-quotes = "double"
 [lint.isort]
 force-to-top = []  # used for override special importers in tests/
 known-first-party = [
-  "kuit"
+  "zx"
 ]
 relative-imports-order = "closest-to-furthest"
 section-order = [

@@ -3,7 +3,7 @@ from pathlib import Path
 from types import FrameType, TracebackType
 from typing import Any, Protocol
 
-from kain.classes import Singleton
+from zx.core.classes import Singleton
 
 __all__ = (
     "OnQuit",

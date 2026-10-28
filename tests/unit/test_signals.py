@@ -16,10 +16,10 @@ from unittest.mock import patch
 
 import pytest
 from faker import Faker
-from kain.classes import Nothing
 
-import kuit.handlers as _signals
-from kuit.handlers import OnQuit, get_mtime, get_selfpath, on
+import zx.quit.handlers as _signals
+from zx.core.classes import Nothing
+from zx.quit.handlers import OnQuit, get_mtime, get_selfpath, on
 
 
 @pytest.fixture(autouse=True)
@@ -181,8 +181,8 @@ class TestOnQuit:
         THEN global hooks and atexit remain untouched.
         """
         with (
-            patch("kuit.handlers.atexit.register") as mock_atexit,
-            patch("kuit.handlers.bind") as mock_bind,
+            patch("zx.quit.handlers.atexit.register") as mock_atexit,
+            patch("zx.quit.handlers.bind") as mock_bind,
         ):
             OnQuit()
 
@@ -252,7 +252,7 @@ class TestOnQuit:
         obj.on_exit(bad_callback)
         obj.on_exit(good_callback)
 
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             obj._teardown()
 
         assert any(record.levelname == "ERROR" for record in caplog.records)
@@ -298,7 +298,7 @@ class TestOnQuit:
         obj._original_hook = lambda *_a: None  # type: ignore[assignment][method-assign]
 
         with (
-            caplog.at_level("ERROR", logger="kuit.handlers"),
+            caplog.at_level("ERROR", logger="zx.quit.handlers"),
             contextlib.suppress(SystemExit),
         ):
             obj._exceptions_hook(
@@ -320,7 +320,7 @@ class TestOnQuit:
         obj = OnQuit()
         obj._callbacks.append(None)  # type: ignore[assignment][arg-type]
 
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             obj._teardown()
 
         assert any(
@@ -360,7 +360,7 @@ class TestOnQuit:
         obj.on_exit(bad_callback)
         obj.on_exit(good_callback)
 
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             obj._teardown()
 
         assert any(record.levelname == "ERROR" for record in caplog.records)
@@ -567,7 +567,7 @@ class TestOn:
         checker = on(func=lambda _code: None)
         script.write_text("changed")
 
-        with caplog.at_level(logging.WARNING, logger="kuit.handlers"):
+        with caplog.at_level(logging.WARNING, logger="zx.quit.handlers"):
             checker()
 
         assert any("updated at" in r.message for r in caplog.records)
@@ -590,7 +590,7 @@ class TestOn:
         checker = on()
         script.unlink()
 
-        with caplog.at_level(logging.WARNING, logger="kuit.handlers"):
+        with caplog.at_level(logging.WARNING, logger="zx.quit.handlers"):
             result = checker()
 
         assert result is False
@@ -738,7 +738,7 @@ class TestEdgeCases:
         script.unlink()
 
         # --- Act ---
-        with caplog.at_level(logging.WARNING, logger="kuit.handlers"):
+        with caplog.at_level(logging.WARNING, logger="zx.quit.handlers"):
             result = checker()
 
         # --- Assert ---
@@ -760,7 +760,7 @@ class TestEdgeCases:
         obj._already_called = False
 
         # --- Act ---
-        with caplog.at_level("ERROR", logger="kuit.handlers"):
+        with caplog.at_level("ERROR", logger="zx.quit.handlers"):
             obj._teardown()
 
         # --- Assert ---

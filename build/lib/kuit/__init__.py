@@ -1,7 +1,7 @@
 from typing import cast
 
-from kuit.halt import here
-from kuit.handlers import OnQuit, on
+from zx.quit.halt import here
+from zx.quit.handlers import OnQuit, on
 
 registry: OnQuit = cast("OnQuit", OnQuit())
 

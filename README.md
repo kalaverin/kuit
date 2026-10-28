@@ -11,9 +11,9 @@ description: Graceful shutdown and file-change detection for Python
 
 It gives you three public entry points:
 
-- `kuit.and_call` — register callbacks that run when the process exits.
-- `kuit.and_intercept` — append custom handlers to the uncaught-exception chain.
-- `kuit.on` — detect file changes or incoming signals and exit cleanly.
+- `zx.quit.and_call` — register callbacks that run when the process exits.
+- `zx.quit.and_intercept` — append custom handlers to the uncaught-exception chain.
+- `zx.quit.on` — detect file changes or incoming signals and exit cleanly.
 
 [ref: #installation]
 
@@ -33,21 +33,21 @@ pip install kuit
 
 [ref: #and-call]
 
-## Registering shutdown callbacks with `kuit.and_call`
+## Registering shutdown callbacks with `zx.quit.and_call`
 
-Use `kuit.and_call` as a decorator or as a plain function call.
+Use `zx.quit.and_call` as a decorator or as a plain function call.
 The callback runs exactly once on `SIGINT`, `SIGTERM`, `SIGQUIT`, or an unhandled exception.
 
 ```python
-import kuit
+import zx.quit
 
 
-@kuit.and_call
+@zx.quit.and_call
 def close_db():
     print("closing database connection")
 
 
-@kuit.and_call
+@zx.quit.and_call
 def flush_logs():
     print("flushing logs")
 ```
@@ -57,34 +57,34 @@ Exceptions raised by one callback are logged and do not stop the next callback f
 
 [ref: #and-intercept]
 
-## Adding exception hooks with `kuit.and_intercept`
+## Adding exception hooks with `zx.quit.and_intercept`
 
-`kuit.and_intercept` lets you insert a custom function into the chain that runs before the original `sys.excepthook`.
+`zx.quit.and_intercept` lets you insert a custom function into the chain that runs before the original `sys.excepthook`.
 
 ```python
-import kuit
+import zx.quit
 
 
 def notify_sentry(exc_type, exc_value, traceback):
     print(f"reporting {exc_type.__name__}: {exc_value}")
 
 
-kuit.and_intercept(notify_sentry)
+zx.quit.and_intercept(notify_sentry)
 ```
 
 [ref: #on]
 
-## Detecting file changes and signals with `kuit.on`
+## Detecting file changes and signals with `zx.quit.on`
 
-`kuit.on` builds a callable that returns `True` while the application should keep running and `False` when it should exit.
+`zx.quit.on` builds a callable that returns `True` while the application should keep running and `False` when it should exit.
 By default it watches the mtime of `sys.argv[0]`; if the file changes, it calls `func(errno)` and returns `False`.
 
 ```python
 import signal
-import kuit
+import zx.quit
 
 
-checker = kuit.on(signal=signal.SIGUSR1)
+checker = zx.quit.on(signal=signal.SIGUSR1)
 
 while checker.sleep(60):
     pass  # main loop work
@@ -95,7 +95,7 @@ while checker.sleep(60):
 
 [ref: #on-options]
 
-### `kuit.on` options
+### `zx.quit.on` options
 
 All arguments are keyword-only.
 
@@ -113,10 +113,10 @@ All arguments are keyword-only.
 
 ```python
 import signal
-import kuit
+import zx.quit
 
 
-@kuit.and_call
+@zx.quit.and_call
 def cleanup():
     print("shutting down")
 
@@ -125,10 +125,10 @@ def log_uncaught(exc_type, exc_value, traceback):
     print(f"uncaught {exc_type.__name__}: {exc_value}")
 
 
-kuit.and_intercept(log_uncaught)
+zx.quit.and_intercept(log_uncaught)
 
 
-checker = kuit.on(
+checker = zx.quit.on(
     signal=signal.SIGUSR1,
     errno=137,
     poll=2.5,

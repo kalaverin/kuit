@@ -13,7 +13,7 @@ project-excludes = [
   "**/node_modules/**",
   "**/tests/**"
 ]
-project-includes = ["**/src/kuit/*.py*"]
+project-includes = ["**/src/zx/**/*.py*"]
 python-version = "3.12"
 replace-imports-with-any = []
 search-path = ["."]
